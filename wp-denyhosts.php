@@ -36,10 +36,10 @@ class DenyHosts {
 	}
 	function defaults() {
 		return array(
-			'block_init'		=> 1,
+			'block_init'		=> 0,
 			'block_site'		=> 0,
 			'login_limit'		=> 3,
-			'email_admin'		=> 1,
+			'email_admin'		=> 0,
 			'local_whitelist'	=> '',
 			'local_banlist'		=> ''
 			);
@@ -117,13 +117,13 @@ class DenyHosts {
 		return array(
 
 			sprintf( '<input type="checkbox" name="block_init" value="1" %s/> Show Access Denied and pass a 403 header, otherwise show polite blocked message.',
-				checked( $this->options['block_init'], true, false )
+				checked( $this->options['block_init'], 1, false )
 			),
 			sprintf( '<input type="checkbox" name="block_site" value="1" %s/> Block the offending IP sitewide, not just wp-login.php',
-				checked( $this->options['block_site'], true, false )
+				checked( $this->options['block_site'], 1, false )
 			),
 			sprintf( '<input type="checkbox" name="email_admin" value="1" %s/> Email admin user when IP is blocked.',
-				checked( $this->options['email_admin'], true, false )
+				checked( $this->options['email_admin'], 1, false )
 			),
 
 			sprintf( '<select name="login_limit">
@@ -233,19 +233,6 @@ class DenyHosts {
 		<body id='error-page'>
 		<?php printf( '<h1>Access Denied!</h1><p>Your IP <strong>%s</strong> has been blocked and logged.</p></body></html>', $_SERVER['REMOTE_ADDR'] );
 		exit();
-	}
-
-	function ipCIDRCheck ($IP, $CIDR) {
-    	list ($net, $mask) = split ("/", $CIDR);
-
-    	$ip_net = ip2long ($net);
-    	$ip_mask = ~((1 << (32 - $mask)) - 1);
-
-    	$ip_ip = ip2long ($IP);
-
-    	$ip_ip_net = $ip_ip & $ip_mask;
-
-    	return ($ip_ip_net == $ip_net);
 	}
 }
 new DenyHosts;
