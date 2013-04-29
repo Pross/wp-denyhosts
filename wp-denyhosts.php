@@ -1,10 +1,10 @@
 <?php
 /*
-Plugin Name: DenyHosts
+Plugin Name: WP-DenyHosts
 Plugin URI: http://pross.org.uk
 Description: Block bad login attempts.
-Version: 1.0
-Author: Pross
+Version: 0.9
+Author: Simon Prosser
 */
 class DenyHosts {
 
@@ -21,14 +21,27 @@ class DenyHosts {
 			wp_schedule_event( time(), 'daily', 'denyhost_cron' );
 
 		add_action( 'admin_menu', array( &$this, 'denyhosts_menu' ) );
+
+		add_action( 'admin_enqueue_scripts', array( &$this, 'admin_scripts' ) );
+
+		add_action( 'admin_footer', array( &$this, 'placeholder' ) );
 	}
 
+	function placeholder() {
+		echo '<script>jQuery("textarea[placeholder]").placeholder();</script>';
+	}
+
+	function admin_scripts() {
+		wp_enqueue_script( 'denyhosts-placeholder', plugins_url( 'js/jquery.placeholder.min.js', __FILE__  ), array( 'jquery' ) );
+	}
 	function defaults() {
 		return array(
-			'block_init'	=> 1,
-			'block_site'	=> 0,
-			'login_limit'	=> 3,
-			'email_admin'	=> 1,
+			'block_init'		=> 1,
+			'block_site'		=> 0,
+			'login_limit'		=> 3,
+			'email_admin'		=> 1,
+			'local_whitelist'	=> '',
+			'local_banlist'		=> ''
 			);
 	}
 
@@ -124,6 +137,10 @@ class DenyHosts {
 			__( 'Attempts before IP is blocked.', 'wp-deny-hosts' )
 			),
 
+			sprintf( "Add IP to local white list. One IP per line.<br /><textarea cols='25' rows='4' name='local_whitelist' placeholder='100.100.100.98\n98.45.81.10\n192.168.1.1'>%s</textarea>", $this->options['local_whitelist'] ),
+
+			sprintf( "Add IP to local ban list. One IP per line. These IPs will not be uploaded.<br /><textarea cols='25' rows='4' name='local_banlist' placeholder='100.100.100.98\n98.45.81.10\n127.0.0.1'>%s</textarea>", $this->options['local_banlist'] ),
+
 			sprintf( '<input type="submit" name="deny-submit" class="button-primary" value="%s" />',
 				esc_attr('Save Changes')
 			)
@@ -144,21 +161,34 @@ class DenyHosts {
 		);
 
 		$data = json_decode( $response['body'] );
-		if( is_object( $data )  && ! empty( $data ) )
+		if( is_object( $data )  && ! empty( $data ) ) {
 			update_option( 'denyhosts_slist', array( 'daily' => $data->daily, 'bad' => $data->bad ) );
+			update_option( 'denyhosts_bans', array() );
+		}
 	}
 
 	function check_bans() {
 
-		// local bans
 		$data = get_option( 'denyhosts_bans', array() );
 		$ip = $_SERVER['REMOTE_ADDR'];
+		$whitelist = explode( "\n", $this->options['local_whitelist'] );
+		$banlist = explode( "\n", $this->options['local_banlist'] );
+
+		foreach( $whitelist as $l => $white ) {
+			if( $white == $ip )
+				return;
+		}
+
+		foreach( $banlist as $l => $ban ) {
+			if( $ban == $ip )
+				$this->block();
+		}
+
 		if( $data[ $ip ] )
 			$this->block();
 
 		// shitlist?
 		$data = get_option( 'denyhosts_slist', array( 'daily' => array(), 'bad' => array() ) );
-
 		$data = array_merge( $data['daily'], $data['bad'] );
 
 		if( array_search( $ip, $data ) )
@@ -168,9 +198,7 @@ class DenyHosts {
 	function failed_attempt( $args ) {
 
 		$data = get_option( 'denyhosts_temp', array() );
-
 		$limit = $this->options['login_limit'];
-
 		$ip = $_SERVER['REMOTE_ADDR'];
 
 		if( count( $data[ $ip ] ) > $limit )
@@ -205,6 +233,19 @@ class DenyHosts {
 		<body id='error-page'>
 		<?php printf( '<h1>Access Denied!</h1><p>Your IP <strong>%s</strong> has been blocked and logged.</p></body></html>', $_SERVER['REMOTE_ADDR'] );
 		exit();
+	}
+
+	function ipCIDRCheck ($IP, $CIDR) {
+    	list ($net, $mask) = split ("/", $CIDR);
+
+    	$ip_net = ip2long ($net);
+    	$ip_mask = ~((1 << (32 - $mask)) - 1);
+
+    	$ip_ip = ip2long ($IP);
+
+    	$ip_ip_net = $ip_ip & $ip_mask;
+
+    	return ($ip_ip_net == $ip_net);
 	}
 }
 new DenyHosts;
