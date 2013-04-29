@@ -3,7 +3,7 @@
 Plugin Name: WP-DenyHosts
 Plugin URI: http://pross.org.uk
 Description: Block bad login attempts.
-Version: 0.9
+Version: 0.9.1
 Author: Simon Prosser
 */
 class DenyHosts {
@@ -189,7 +189,7 @@ class DenyHosts {
 				$this->block();
 		}
 
-		if( $data[ $ip ] )
+		if( isset( $data[ $ip ] ) )
 			$this->block();
 
 		// shitlist?
@@ -206,7 +206,7 @@ class DenyHosts {
 		$limit = $this->options['login_limit'];
 		$ip = $_SERVER['REMOTE_ADDR'];
 
-		if( count( $data[ $ip ] ) > $limit )
+		if( isset( $data[ $ip ] ) && count( $data[ $ip ] ) > $limit )
 			$this->add_ban( $ip );
 
 		$data[ $ip ][] = $args;
@@ -221,7 +221,7 @@ class DenyHosts {
 		unset( $temp[ $ip ] );
 
 		update_option( 'denyhosts_bans', $data );
-		update_option( 'denyhosts_temp', $temps );
+		update_option( 'denyhosts_temp', $temp );
 		if( $this->options['email_admin'] )
 			wp_mail( get_option( 'admin_email' ), 'IP BLOCKED', sprintf( 'IP: %s has just been blocked on %s. Total IPs blocked: %s', $ip, get_option( 'blogname' ), count( $data ) ) );
 		$this->block();
