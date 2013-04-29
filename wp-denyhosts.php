@@ -20,11 +20,18 @@ class DenyHosts {
 		if( ! wp_next_scheduled( 'denyhost_cron' ) )
 			wp_schedule_event( time(), 'daily', 'denyhost_cron' );
 
+		add_action( 'init', array( &$this, 'admin' ) );
+	}
+
+	function admin() {
+
+		if( ! is_admin() || ! is_super_admin() )
+			return;
 		add_action( 'admin_menu', array( &$this, 'denyhosts_menu' ) );
-
 		add_action( 'admin_enqueue_scripts', array( &$this, 'admin_scripts' ) );
-
 		add_action( 'admin_footer', array( &$this, 'placeholder' ) );
+		if( is_admin() && isset( $_REQUEST['deny-submit'] ) && check_admin_referer( 'deny-submit', 'deny-options' ) )
+			$this->update_options();
 	}
 
 	function placeholder() {
@@ -47,13 +54,11 @@ class DenyHosts {
 
 	function init() {
 
-		if( is_admin() && isset( $_REQUEST['deny-submit'] ) && check_admin_referer( 'deny-submit', 'deny-options' ) )
-			$this->update_options();
-
 		$this->options = get_option( 'denyhosts_options', $this->defaults() );
 
 		if( is_admin() )
 			return;
+
 		if( $this->options['block_init'] && '/wp-login.php' == $_SERVER['REQUEST_URI'] )
 			$this->check_bans();
 		if( $this->options['block_site'] )
